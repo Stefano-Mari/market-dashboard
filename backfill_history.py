@@ -67,7 +67,7 @@ def to_rows(barset):
                 float(b.high), 
                 float(b.low), 
                 float(b.close), 
-                float(b.volume)
+                int(b.volume)
             ))
     return rows
 
