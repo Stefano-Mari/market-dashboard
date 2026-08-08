@@ -1,5 +1,25 @@
+# Secrets
 .env
+.env.local
+.env.*.local
+
+# Python
 venv/
 __pycache__/
+*.pyc
+.pytest_cache/
+
+# Local data
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 scratch*.py
+
+# Editors
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

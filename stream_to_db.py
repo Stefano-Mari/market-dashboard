@@ -27,13 +27,13 @@ def init_db():
 
     CREATE INDEX IF NOT EXISTS idx_trades_symbol_ts 
         ON trades(symbol, ts DESC);
-    
+
     CREATE TABLE IF NOT EXISTS latest_quotes (
         symbol TEXT PRIMARY KEY,
-        bid_price REAL NOT NULL,
-        bid_size REAL NOT NULL,
-        ask_price REAL NOT NULL,
-        ask_size REAL NOT NULL,
+        bid_price REAL NOT NULL CHECK (bid_price > 0),
+        bid_size REAL NOT NULL CHECK (bid_size >= 0),
+        ask_price REAL NOT NULL CHECK (ask_price > 0),
+        ask_size REAL NOT NULL CHECK (ask_size >= 0),
         ts TEXT NOT NULL
     );
     """)
@@ -98,6 +98,9 @@ async def on_trade(trade):
 
 async def on_quote(quote):
     start_writer()
+    if quote.bid_price <= 0 or quote.ask_price <= 0:
+        return # skip malformed quotes
+    
     await queue.put(("quote", (quote.symbol, float(quote.bid_price), float(quote.bid_size),
                                 float(quote.ask_price), float(quote.ask_size), quote.timestamp.isoformat())))
 
