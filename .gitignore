@@ -23,3 +23,9 @@ scratch*.py
 # OS
 .DS_Store
 Thumbs.db
+
+# Node
+node_modules/
+dist/
+*.local
+npm-debug.log*
