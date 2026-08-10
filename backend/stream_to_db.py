@@ -115,7 +115,7 @@ if __name__ == "__main__":
         symbols = ["BTC/USD", "ETH/USD"]
     else:
         stream = StockDataStream(key, secret)
-        symbols = ["AAPL", "TSLA", "MSFT"]
+        symbols = ["AAPL", "TSLA", "MSFT", "SPY"]
 
     print(f"Streaming {stream_type}: {', '.join(symbols)}")
     stream.subscribe_trades(on_trade, *symbols)
