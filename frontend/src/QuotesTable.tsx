@@ -13,7 +13,7 @@ interface QuotesTableProps {
 }
 
 function QuotesTable({ quotes }: QuotesTableProps) {
-    return(
+    return (
         <table>
             <thead>
                 <tr>
@@ -32,8 +32,8 @@ function QuotesTable({ quotes }: QuotesTableProps) {
                         <td>{q.ask_price.toFixed(2)}</td>
                         <td>{q.spread.toFixed(2)}</td>
                         <td>
-                            {Math.round(q.age_seconds)}s 
-                            {q.is_stale && <span style={{color: "#e57373"}}> stale</span>}
+                            {Math.round(q.age_seconds)}s
+                            {q.is_stale && <span style={{ color: "#e57373" }}> stale</span>}
                         </td>
                     </tr>
                 ))}

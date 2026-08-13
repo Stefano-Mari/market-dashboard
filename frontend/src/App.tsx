@@ -11,14 +11,9 @@ function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`${API_BASE}/symbols`).then((r) => r.json()),
-      fetch(`${API_BASE}/quotes`).then((r) => r.json()),
-    ])
-      .then(([symbolsData, quotesData]) => {
+    fetch(`${API_BASE}/symbols`).then((r) => r.json())
+      .then((symbolsData) => {
         setSymbols(symbolsData.symbols);
-        setQuotes(quotesData.quotes);
-        setLoading(false);
       })
       .catch((err) => {
         setError(String(err));
@@ -26,8 +21,27 @@ function App() {
       });
   }, []);
 
-  if (loading) return <p>Loading…</p>;
+  useEffect(() => {
+    const pollStatus = () => {
+      fetch(`${API_BASE}/quotes`).then((r) => r.json())
+        .then((quotesData) => {
+          setQuotes(quotesData.quotes);
+          setError(null);
+          setLoading(false);
+        })
+        .catch((err) => {
+          setError(String(err));
+          setLoading(false);
+        });
+    }
+    pollStatus();
+    const interval = setInterval(pollStatus, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   if (error) return <p>Error: {error}</p>;
+  if (loading) return <p>Loading…</p>;
 
   return (
     <div>
