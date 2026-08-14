@@ -10,7 +10,7 @@ from alpaca.data.enums import Adjustment
 DB_PATH = "market_data.db"
 SYMBOLS = ["AAPL", "MSFT", "TSLA", "SPY"]
 # 2 years = ~500 trading days per symbol
-# This will be enough for volitality and correlation, but will be widened later
+# This will be enough for volatility and correlation, but will be widened later
 # note to self: Alpacas data starts in 2016
 YEARS_BACK = 2 
 
