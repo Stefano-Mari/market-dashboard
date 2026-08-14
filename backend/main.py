@@ -3,10 +3,28 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from metrics import daily_returns, load_bars, annualized_return, annualized_volatility
 from datetime import datetime, timezone
+from contextlib import asynccontextmanager
+from stream_to_db import init_db, writer_loop, build_stream, flush
+import asyncio
 
 STALE_AFTER_SECONDS = 60
 DB_PATH = "market_data.db"
-app = FastAPI(title="Market Dashboard API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    write_task = asyncio.create_task(writer_loop())
+    stream = build_stream()
+    stream_task = asyncio.create_task(stream._run_forever())
+    try:
+        yield 
+    finally:
+        await stream.stop_ws()
+        stream_task.cancel()
+        write_task.cancel()
+        await asyncio.gather(stream_task, write_task, return_exceptions=True)
+
+app = FastAPI(title="Market Dashboard API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -14,7 +32,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 @app.get("/symbols")
 def get_symbols():

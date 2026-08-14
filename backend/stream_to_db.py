@@ -12,7 +12,6 @@ BATCH_SIZE = 100
 load_dotenv()
 
 queue: asyncio.Queue = asyncio.Queue()
-_writer_task = None
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -84,44 +83,40 @@ async def writer_loop():
     conn = sqlite3.connect(DB_PATH)
     trades, quotes = [], {}
     last_flush = time.monotonic() # monotonic is used to avoid issues with system clock changes
-    while True:
-        try:
-            kind, row = await asyncio.wait_for(queue.get(), timeout=FLUSH_SECONDS) # returns a tuple of (kind, row)
-            if kind == "trade":
-                trades.append(row)
-            else:
-                quotes[row[0]] = row  # this is a dict with symbol as key
-        except asyncio.TimeoutError:
-            pass # timeout, flush whatever we have
+    try:
+        while True:
+            try:
+                kind, row = await asyncio.wait_for(queue.get(), timeout=FLUSH_SECONDS) # returns a tuple of (kind, row)
+                if kind == "trade":
+                    trades.append(row)
+                else:
+                    quotes[row[0]] = row  # this is a dict with symbol as key
+            except asyncio.TimeoutError:
+                pass # timeout, flush whatever we have
 
-        now = time.monotonic()
-        if (now - last_flush >= FLUSH_SECONDS) or (len(trades) >= BATCH_SIZE):
-            if trades or quotes:
-                flush(conn, trades, quotes)
-                trades, quotes = [], {} # reset for next batch
-                last_flush = time.monotonic() # update the last flush time
+            now = time.monotonic()
+            if (now - last_flush >= FLUSH_SECONDS) or (len(trades) >= BATCH_SIZE):
+                if trades or quotes:
+                    flush(conn, trades, quotes)
+                    trades, quotes = [], {} # reset for next batch
+                    last_flush = time.monotonic() # update the last flush time
 
-# function to start the writer loop if it's not already running
-def start_writer():
-    global _writer_task
-    if _writer_task is None:
-        _writer_task = asyncio.create_task(writer_loop())
+    except asyncio.CancelledError:
+        if trades or quotes:
+            flush(conn, trades, quotes)
+        raise 
+
+    finally:
+        conn.close()
 
 # async function to handle incoming trades and put them in the queue
 # await is needed here because queue.put is an async function
 async def on_trade(trade):
-    start_writer()
     await queue.put(("trade", (trade.symbol, float(trade.price), float(trade.size), trade.timestamp.isoformat())))
 
 async def on_quote(quote):
-    start_writer()
     if quote.bid_price <= 0 or quote.ask_price <= 0:
         return # skip malformed quotes
     
     await queue.put(("quote", (quote.symbol, float(quote.bid_price), float(quote.bid_size),
                                 float(quote.ask_price), float(quote.ask_size), quote.timestamp.isoformat())))
-
-if __name__ == "__main__":
-    init_db()
-    stream = build_stream()
-    stream.run()
