@@ -2,6 +2,8 @@
 
 A full-stack pipeline that streams live equity quotes and trades from Alpaca, persists them to a local database, and outputs them to a React Dashboard.
 
+**Status:** in development. Core pipeline is functional; see roadmap for planned additions.
+
 ## Architecture
 
 Alpaca Websocket -> asyncio queue -> batched SQLite writes -> FastAPI -> React

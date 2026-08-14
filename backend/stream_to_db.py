@@ -41,6 +41,23 @@ def init_db():
     conn.close()
     print(f"Database initialized at {DB_PATH}")
 
+def build_stream():
+    key, secret = os.getenv("ALPACA_KEY"), os.getenv("ALPACA_SECRET")
+    stream_type = os.getenv("STREAM_TYPE", "stock").lower()
+    
+    if stream_type == "crypto":
+        stream = CryptoDataStream(key, secret)
+        symbols = ["BTC/USD", "ETH/USD"]
+    else:
+        stream = StockDataStream(key, secret)
+        symbols = ["AAPL", "TSLA", "MSFT", "SPY"]
+    
+    print(f"Streaming {stream_type}: {', '.join(symbols)}")
+    stream.subscribe_trades(on_trade, *symbols)
+    stream.subscribe_quotes(on_quote, *symbols)
+
+    return stream
+
 # function to flush trades and quotes to the database
 def flush(conn, trades, quotes):
     if trades:
@@ -106,18 +123,5 @@ async def on_quote(quote):
 
 if __name__ == "__main__":
     init_db()
-
-    key, secret = os.getenv("ALPACA_KEY"), os.getenv("ALPACA_SECRET")
-    stream_type = os.getenv("STREAM_TYPE", "stock").lower()
-
-    if stream_type == "crypto":
-        stream = CryptoDataStream(key, secret)
-        symbols = ["BTC/USD", "ETH/USD"]
-    else:
-        stream = StockDataStream(key, secret)
-        symbols = ["AAPL", "TSLA", "MSFT", "SPY"]
-
-    print(f"Streaming {stream_type}: {', '.join(symbols)}")
-    stream.subscribe_trades(on_trade, *symbols)
-    stream.subscribe_quotes(on_quote, *symbols)
+    stream = build_stream()
     stream.run()
