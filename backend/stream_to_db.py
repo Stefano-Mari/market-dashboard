@@ -8,6 +8,7 @@ from alpaca.data.live import StockDataStream, CryptoDataStream
 DB_PATH = "market_data.db"
 FLUSH_SECONDS = 2
 BATCH_SIZE = 100
+on_flush = None
 
 load_dotenv()
 
@@ -100,6 +101,8 @@ async def writer_loop():
                     flush(conn, trades, quotes)
                     trades, quotes = [], {} # reset for next batch
                     last_flush = time.monotonic() # update the last flush time
+                    if on_flush is not None:
+                        await on_flush()
 
     except asyncio.CancelledError:
         if trades or quotes:

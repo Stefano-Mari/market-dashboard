@@ -1,18 +1,45 @@
 import sqlite3
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from metrics import daily_returns, load_bars, annualized_return, annualized_volatility
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from stream_to_db import init_db, writer_loop, build_stream, flush
+from stream_to_db import init_db, writer_loop, build_stream
+import stream_to_db
 import asyncio
+
 
 STALE_AFTER_SECONDS = 60
 DB_PATH = "market_data.db"
 
+class ConnectionManager:
+    def __init__(self):
+        self.connections: set[WebSocket] = set()
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.connections.add(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.connections.discard(websocket)
+
+    async def broadcast(self):
+        dead = []
+        for websocket in self.connections.copy():
+            try:
+                await websocket.send_text("update")
+            except Exception:
+                dead.append(websocket)
+
+        for websocket in dead:
+            self.disconnect(websocket)
+
+manager = ConnectionManager()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    stream_to_db.on_flush = manager.broadcast
     write_task = asyncio.create_task(writer_loop())
     stream = build_stream()
     stream_task = asyncio.create_task(stream._run_forever())
@@ -32,6 +59,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+
+    try:
+        while True:
+            await websocket.receive_text()
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
 @app.get("/symbols")
 def get_symbols():

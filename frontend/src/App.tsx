@@ -3,6 +3,7 @@ import QuotesTable from "./QuotesTable";
 import type { Quote } from "./QuotesTable";
 
 const API_BASE = "http://localhost:8000";
+const WS_URL = "ws://localhost:8000/ws"
 
 function App() {
   const [symbols, setSymbols] = useState<string[]>([]);
@@ -28,7 +29,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const pollStatus = () => {
+    const fetchQuotes = () => {
       fetch(`${API_BASE}/quotes`)
         .then((res) => {
           if (!res.ok) {
@@ -46,10 +47,11 @@ function App() {
           setLoading(false);
         });
     }
-    pollStatus();
-    const interval = setInterval(pollStatus, 5000);
+    fetchQuotes();
+    const websocket = new WebSocket(WS_URL);
+    websocket.onmessage = () => fetchQuotes();
 
-    return () => clearInterval(interval);
+    return () => websocket.close();
   }, []);
 
   if (loading) return <p>Loading…</p>;
