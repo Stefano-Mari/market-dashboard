@@ -3,13 +3,15 @@ import QuotesTable from "./QuotesTable";
 import type { Quote } from "./QuotesTable";
 
 const API_BASE = "http://localhost:8000";
-const WS_URL = "ws://localhost:8000/ws"
+const WS_URL = "ws://localhost:8000/ws";
+type ConnectionStatus = "connected" | "disconnected" | "reconnecting";
 
 function App() {
   const [symbols, setSymbols] = useState<string[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<ConnectionStatus>("disconnected");
 
   useEffect(() => {
     fetch(`${API_BASE}/symbols`)
@@ -29,6 +31,11 @@ function App() {
   }, []);
 
   useEffect(() => {
+    let websocket: WebSocket | null = null;
+    let retryClock: ReturnType<typeof setTimeout>;
+    let attempts: number = 0;
+    let cancelled: boolean = false;
+
     const fetchQuotes = () => {
       fetch(`${API_BASE}/quotes`)
         .then((res) => {
@@ -48,10 +55,34 @@ function App() {
         });
     }
     fetchQuotes();
-    const websocket = new WebSocket(WS_URL);
-    websocket.onmessage = () => fetchQuotes();
 
-    return () => websocket.close();
+    const connect = () => {
+      websocket = new WebSocket(WS_URL);
+
+      websocket.onopen = () => {
+        fetchQuotes();
+        setStatus("connected");
+        attempts = 0;
+      };
+
+      websocket.onmessage = () => fetchQuotes();
+
+      websocket.onclose = () => {
+        if (cancelled) return;
+        setStatus("reconnecting");
+        const delay = Math.min(1000 * 2 ** attempts, 30000);
+        attempts++;
+        retryClock = setTimeout(connect, delay);
+      };
+    };
+
+    connect();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(retryClock);
+      websocket?.close();
+    }
   }, []);
 
   if (loading) return <p>Loading…</p>;
@@ -60,7 +91,11 @@ function App() {
   return (
     <div>
       <h1>Market Dashboard</h1>
-      {error && <p style={{ color: "#e57373"}}>Lost Connection - showing last known data</p>}
+      {status !== "connected" && (
+        <p style={{ color: "#e57373"}}>
+          {status === "reconnecting" ? "Reconnecting..." : "Disconnected"} - showing last known data
+        </p>
+      )}
       <p>Tracking: {symbols.join(", ")}</p>
       <QuotesTable quotes={quotes} />
     </div>
