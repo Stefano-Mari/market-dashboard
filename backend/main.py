@@ -7,10 +7,11 @@ from contextlib import asynccontextmanager
 from stream_to_db import init_db, writer_loop, build_stream
 import stream_to_db
 import asyncio
+from pathlib import Path
 
 
 STALE_AFTER_SECONDS = 60
-DB_PATH = "market_data.db"
+DB_PATH = Path(__file__).parent / "market_data.db"
 
 class ConnectionManager:
     def __init__(self):
@@ -128,18 +129,23 @@ def get_metrics():
 @app.get("/quotes")
 def get_quotes():
     """Return the latest bid/ask per symbol, with a staleness flag."""
+    symbols = stream_to_db.get_symbols()
+    placeholders = ",".join("?" * len(symbols))
+
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     try:
-        rows = conn.execute("SELECT * FROM latest_quotes ORDER BY symbol").fetchall()
+        # injection is avoided here because SQLite parses the query structure first and THEN binds the values seperately
+        rows = conn.execute(f"SELECT * FROM latest_quotes WHERE symbol IN ({placeholders}) ORDER BY symbol", symbols).fetchall()
 
     finally:
         conn.close()
+
     now = datetime.now(timezone.utc)
     quotes = []
 
     for r in rows:
-        age = (now - datetime.fromisoformat(r["ts"])).total_seconds()
+        age = (now - datetime.fromisoformat(r["ingested_at"])).total_seconds()
         quotes.append({
             "symbol": r["symbol"],
             "bid_price": r["bid_price"],
