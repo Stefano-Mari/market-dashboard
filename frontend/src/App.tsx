@@ -57,6 +57,7 @@ function App() {
     fetchQuotes();
 
     const connect = () => {
+      console.log("Connect called");
       websocket = new WebSocket(WS_URL);
 
       websocket.onopen = () => {
@@ -73,6 +74,7 @@ function App() {
         const delay = Math.min(1000 * 2 ** attempts, 30000);
         attempts++;
         retryClock = setTimeout(connect, delay);
+        console.log(`WS closed, retry #${attempts} in ${delay}ms`);
       };
     };
 
