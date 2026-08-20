@@ -4,13 +4,18 @@ import sqlite3
 import time
 from dotenv import load_dotenv
 from alpaca.data.live import StockDataStream, CryptoDataStream
+from datetime import datetime, timezone
+from pathlib import Path
 
-DB_PATH = "market_data.db"
+DB_PATH = Path(__file__).parent / "market_data.db"
 FLUSH_SECONDS = 2
 BATCH_SIZE = 100
 on_flush = None
 
 load_dotenv()
+# STREAM_TYPE is below load_dotenv because it will silently read the wrong stream type if not.
+# module-level config has a dependency on import order. It will fall back on the stock default rather than raise an error.
+STREAM_TYPE = os.getenv("STREAM_TYPE", "stock").lower()
 
 queue: asyncio.Queue = asyncio.Queue()
 
@@ -22,7 +27,8 @@ def init_db():
         symbol TEXT NOT NULL,
         price REAL NOT NULL,
         size REAL NOT NULL,
-        ts TEXT NOT NULL
+        ts TEXT NOT NULL,
+        ingested_at TEXT NOT NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_trades_symbol_ts 
@@ -34,25 +40,29 @@ def init_db():
         bid_size REAL NOT NULL CHECK (bid_size >= 0),
         ask_price REAL NOT NULL CHECK (ask_price > 0),
         ask_size REAL NOT NULL CHECK (ask_size >= 0),
-        ts TEXT NOT NULL
+        ts TEXT NOT NULL,
+        ingested_at TEXT NOT NULL
     );
     """)
     conn.commit()
     conn.close()
     print(f"Database initialized at {DB_PATH}")
 
+def get_symbols():
+        
+    if STREAM_TYPE == "crypto":
+        return ["BTC/USD", "ETH/USD"]
+    
+    return ["AAPL", "TSLA", "MSFT", "SPY"]
+    
+
 def build_stream():
     key, secret = os.getenv("ALPACA_KEY"), os.getenv("ALPACA_SECRET")
-    stream_type = os.getenv("STREAM_TYPE", "stock").lower()
+    symbols = get_symbols()
+
+    stream = CryptoDataStream(key, secret) if STREAM_TYPE == "crypto" else StockDataStream(key, secret)
     
-    if stream_type == "crypto":
-        stream = CryptoDataStream(key, secret)
-        symbols = ["BTC/USD", "ETH/USD"]
-    else:
-        stream = StockDataStream(key, secret)
-        symbols = ["AAPL", "TSLA", "MSFT", "SPY"]
-    
-    print(f"Streaming {stream_type}: {', '.join(symbols)}")
+    print(f"Streaming {STREAM_TYPE}: {', '.join(symbols)}")
     stream.subscribe_trades(on_trade, *symbols)
     stream.subscribe_quotes(on_quote, *symbols)
 
@@ -62,17 +72,18 @@ def build_stream():
 def flush(conn, trades, quotes):
     if trades:
         conn.executemany(
-            "INSERT INTO trades (symbol, price, size, ts) VALUES (?, ?, ?, ?)", trades)
+            "INSERT INTO trades (symbol, price, size, ts, ingested_at) VALUES (?, ?, ?, ?, ?)", trades)
     if quotes:
         conn.executemany(
-            """INSERT INTO latest_quotes (symbol, bid_price, bid_size, ask_price, ask_size, ts)
-                VALUES (?, ?, ?, ?, ?, ?)
+            """INSERT INTO latest_quotes (symbol, bid_price, bid_size, ask_price, ask_size, ts, ingested_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(symbol) DO UPDATE SET
                     bid_price=excluded.bid_price,
                     bid_size=excluded.bid_size,
                     ask_price=excluded.ask_price,
                     ask_size=excluded.ask_size,
-                    ts=excluded.ts""",
+                    ts=excluded.ts,
+                    ingested_at=excluded.ingested_at""",
             list(quotes.values()),
         )
     conn.commit()
@@ -115,11 +126,13 @@ async def writer_loop():
 # async function to handle incoming trades and put them in the queue
 # await is needed here because queue.put is an async function
 async def on_trade(trade):
-    await queue.put(("trade", (trade.symbol, float(trade.price), float(trade.size), trade.timestamp.isoformat())))
+    ingested_at = datetime.now(timezone.utc).isoformat()
+    await queue.put(("trade", (trade.symbol, float(trade.price), float(trade.size), trade.timestamp.isoformat(), ingested_at)))
 
 async def on_quote(quote):
     if quote.bid_price <= 0 or quote.ask_price <= 0:
         return # skip malformed quotes
+    ingested_at = datetime.now(timezone.utc).isoformat()
     
     await queue.put(("quote", (quote.symbol, float(quote.bid_price), float(quote.bid_size),
-                                float(quote.ask_price), float(quote.ask_size), quote.timestamp.isoformat())))
+                                float(quote.ask_price), float(quote.ask_size), quote.timestamp.isoformat(), ingested_at)))
