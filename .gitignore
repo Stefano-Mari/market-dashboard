@@ -28,4 +28,6 @@ Thumbs.db
 node_modules/
 dist/
 *.local
-npm-debug.log*
+
+# Misc
+INTERVIEW_PREP.md
