@@ -12,10 +12,10 @@ FLUSH_SECONDS = 2
 BATCH_SIZE = 100
 on_flush = None
 
-load_dotenv()
+load_dotenv(Path(__file__).parent / ".env")
 # STREAM_TYPE is below load_dotenv because it will silently read the wrong stream type if not.
 # module-level config has a dependency on import order. It will fall back on the stock default rather than raise an error.
-STREAM_TYPE = os.getenv("STREAM_TYPE", "stock").lower()
+STREAM_TYPE = os.getenv("STREAM_TYPE") or "stock"
 
 queue: asyncio.Queue = asyncio.Queue()
 

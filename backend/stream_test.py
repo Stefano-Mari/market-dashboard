@@ -1,8 +1,9 @@
 import os
+import Path
 from dotenv import load_dotenv
 from alpaca.data.live import StockDataStream
 
-load_dotenv()
+load_dotenv(Path(__file__).parent / ".env")
 
 stream = StockDataStream(os.getenv("ALPACA_KEY"), os.getenv("ALPACA_SECRET"))
 

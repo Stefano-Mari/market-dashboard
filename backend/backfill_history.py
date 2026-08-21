@@ -1,4 +1,5 @@
 import os
+import Path
 import sqlite3
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -14,7 +15,7 @@ SYMBOLS = ["AAPL", "MSFT", "TSLA", "SPY"]
 # note to self: Alpacas data starts in 2016
 YEARS_BACK = 2 
 
-load_dotenv()
+load_dotenv(Path(__file__).parent / ".env")
 API_KEY = os.getenv("ALPACA_KEY")
 API_SECRET = os.getenv("ALPACA_SECRET")
 
