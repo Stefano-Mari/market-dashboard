@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from .metrics import daily_returns, load_bars, annualized_return, annualized_volatility
@@ -11,7 +12,7 @@ from pathlib import Path
 
 
 STALE_AFTER_SECONDS = 60
-DB_PATH = Path(__file__).parent / "market_data.db"
+DB_PATH = os.getenv("DB_PATH") or str(Path(__file__).parent / "market_data.db")
 
 class ConnectionManager:
     def __init__(self):

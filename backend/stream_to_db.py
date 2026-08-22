@@ -7,7 +7,7 @@ from alpaca.data.live import StockDataStream, CryptoDataStream
 from datetime import datetime, timezone
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent / "market_data.db"
+DB_PATH = os.getenv("DB_PATH") or str(Path(__file__).parent / "market_data.db")
 FLUSH_SECONDS = 2
 BATCH_SIZE = 100
 on_flush = None
