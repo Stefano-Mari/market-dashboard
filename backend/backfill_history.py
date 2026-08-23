@@ -1,5 +1,5 @@
 import os
-import Path
+from pathlib import Path
 import sqlite3
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -8,7 +8,7 @@ from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 from alpaca.data.enums import Adjustment
 
-DB_PATH = "market_data.db"
+DB_PATH = os.getenv("DB_PATH") or str(Path(__file__).parent / "market_data.db")
 SYMBOLS = ["AAPL", "MSFT", "TSLA", "SPY"]
 # 2 years = ~500 trading days per symbol
 # This will be enough for volatility and correlation, but will be widened later

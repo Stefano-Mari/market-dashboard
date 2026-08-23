@@ -1,6 +1,11 @@
 import sqlite3
+import os
+from pathlib import Path
 
-conn = sqlite3.connect('market_data.db')
+
+DB_PATH = os.getenv("DB_PATH") or str(Path(__file__).parent / "market_data.db")
+conn = sqlite3.connect(DB_PATH)
+print(f"Opening: {DB_PATH}")
 conn.row_factory = sqlite3.Row
 
 print("\n=== Latest Quotes ===")

@@ -25,18 +25,22 @@ function QuotesTable({ quotes }: QuotesTableProps) {
                 </tr>
             </thead>
             <tbody>
-                {quotes.map((q) => (
-                    <tr key={q.symbol}>
-                        <td>{q.symbol}</td>
-                        <td>{q.bid_price.toFixed(2)}</td>
-                        <td>{q.ask_price.toFixed(2)}</td>
-                        <td>{q.spread.toFixed(2)}</td>
-                        <td>
-                            {Math.round(q.age_seconds)}s
-                            {q.is_stale && <span style={{ color: "#e57373" }}> stale</span>}
-                        </td>
-                    </tr>
-                ))}
+                {quotes.length === 0 ? (
+                    <tr><td colSpan={5}>No recent data - markets may be closed</td></tr>
+                ) : (
+                    quotes.map((q) => (
+                        <tr key={q.symbol}>
+                            <td>{q.symbol}</td>
+                            <td>{q.bid_price.toFixed(2)}</td>
+                            <td>{q.ask_price.toFixed(2)}</td>
+                            <td>{q.spread.toFixed(2)}</td>
+                            <td>
+                                {Math.round(q.age_seconds)}s
+                                {q.is_stale && <span style={{ color: "#e57373" }}> stale</span>}
+                            </td>
+                        </tr>
+                    ))
+                )}
             </tbody>
         </table>
     );
