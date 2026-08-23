@@ -43,6 +43,20 @@ def init_db():
         ts TEXT NOT NULL,
         ingested_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS daily_bars (
+        symbol TEXT NOT NULL,
+        date TEXT NOT NULL,
+        open REAL NOT NULL,
+        high REAL NOT NULL,
+        low REAL NOT NULL,
+        close REAL NOT NULL,
+        volume INTEGER NOT NULL,
+        PRIMARY KEY (symbol, date)
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_bars_symbol_date
+        ON daily_bars(symbol, date DESC);
     """)
     conn.commit()
     conn.close()

@@ -3,11 +3,13 @@ from pathlib import Path
 import sqlite3
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from .stream_to_db import init_db
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 from alpaca.data.enums import Adjustment
 
+load_dotenv(Path(__file__).parent / ".env")
 DB_PATH = os.getenv("DB_PATH") or str(Path(__file__).parent / "market_data.db")
 SYMBOLS = ["AAPL", "MSFT", "TSLA", "SPY"]
 # 2 years = ~500 trading days per symbol
@@ -15,29 +17,8 @@ SYMBOLS = ["AAPL", "MSFT", "TSLA", "SPY"]
 # note to self: Alpacas data starts in 2016
 YEARS_BACK = 2 
 
-load_dotenv(Path(__file__).parent / ".env")
 API_KEY = os.getenv("ALPACA_KEY")
 API_SECRET = os.getenv("ALPACA_SECRET")
-
-def init_schema(conn):
-    conn.executescript("""
-    CREATE TABLE IF NOT EXISTS daily_bars (
-        symbol TEXT NOT NULL,
-        date TEXT NOT NULL,
-        open REAL NOT NULL,
-        high REAL NOT NULL,
-        low REAL NOT NULL,
-        close REAL NOT NULL,
-        volume INTEGER NOT NULL,
-        PRIMARY KEY (symbol, date)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_bars_symbol_date
-        ON daily_bars(symbol, date DESC);
-    """)
-
-    conn.commit()
-    print(f"Database schema initialized at {DB_PATH}")
 
 def fetch_bars():
     client = StockHistoricalDataClient(API_KEY, API_SECRET)
@@ -122,8 +103,8 @@ def summarize(conn):
     print(f"\nSuspect rows (null/zero close): {bad}")
 
 if __name__ == "__main__":
+    init_db()
     conn = sqlite3.connect(DB_PATH)
-    init_schema(conn)
     barset = fetch_bars()
     rows = to_rows(barset)
     upsert_bars(conn, rows)
