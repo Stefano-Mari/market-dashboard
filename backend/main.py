@@ -6,12 +6,14 @@ from .metrics import daily_returns, load_bars, annualized_return, annualized_vol
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from .stream_to_db import init_db, writer_loop, build_stream
+from .backfill_history import stale_bar_refetch
 from . import stream_to_db
 import asyncio
 from pathlib import Path
 
 
 STALE_AFTER_SECONDS = 60
+# load_dotenv() called by stream_to_db import
 DB_PATH = os.getenv("DB_PATH") or str(Path(__file__).parent / "market_data.db")
 
 class ConnectionManager:
@@ -41,6 +43,9 @@ manager = ConnectionManager()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    conn = sqlite3.connect(DB_PATH)
+    stale_bar_refetch(conn)
+    conn.close()
     stream_to_db.on_flush = manager.broadcast
     write_task = asyncio.create_task(writer_loop())
     stream = build_stream()
@@ -74,7 +79,7 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 @app.get("/symbols")
-def get_symbols():
+def list_symbols():
     """List all present symbols in the database."""
     conn = sqlite3.connect(DB_PATH)
     try:

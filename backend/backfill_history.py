@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from dotenv import load_dotenv
 from .stream_to_db import init_db
 from alpaca.data.historical import StockHistoricalDataClient
@@ -102,6 +102,25 @@ def summarize(conn):
 
     print(f"\nSuspect rows (null/zero close): {bad}")
 
+def stale_bar_refetch(conn):
+    try:
+        max_date = conn.execute(
+            "SELECT MAX(date) FROM daily_bars"
+        ).fetchone()[0]
+
+        if (max_date is None):
+            is_stale = True
+        else:
+            is_stale = (date.today() - date.fromisoformat(max_date)).days > 2
+        
+        if is_stale:
+            barset = fetch_bars()
+            rows = to_rows(barset)
+            upsert_bars(conn, rows)
+
+    except Exception as e:
+        print(f"Bar refresh failed: {e} - continuing...")
+        
 if __name__ == "__main__":
     init_db()
     conn = sqlite3.connect(DB_PATH)
