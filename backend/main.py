@@ -62,7 +62,8 @@ app = FastAPI(title="Market Dashboard API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173",
+                   "https://market-dashboard-production-2317.up.railway.app"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
