@@ -2,8 +2,6 @@ import { useState, useEffect } from "react";
 import QuotesTable from "./QuotesTable";
 import type { Quote } from "./QuotesTable";
 
-const API_BASE = "http://localhost:8000";
-const WS_URL = "ws://localhost:8000/ws";
 type ConnectionStatus = "connected" | "disconnected" | "reconnecting";
 
 function App() {
@@ -14,7 +12,7 @@ function App() {
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
 
   useEffect(() => {
-    fetch(`${API_BASE}/symbols`)
+    fetch("/symbols")
       .then((res) => {
         if (!res.ok){
           throw new Error(`HTTP ${res.status}`);
@@ -37,7 +35,7 @@ function App() {
     let cancelled: boolean = false;
 
     const fetchQuotes = () => {
-      fetch(`${API_BASE}/quotes`)
+      fetch("/quotes")
         .then((res) => {
           if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);
@@ -57,8 +55,9 @@ function App() {
     fetchQuotes();
 
     const connect = () => {
-      console.log("Connect called");
-      websocket = new WebSocket(WS_URL);
+      const scheme = (window.location.protocol === "https:" ? "wss:" : "ws:");
+      const wsURL = `${scheme}//${window.location.host}/ws`;
+      websocket = new WebSocket(wsURL);
 
       websocket.onopen = () => {
         fetchQuotes();
@@ -68,13 +67,18 @@ function App() {
 
       websocket.onmessage = () => fetchQuotes();
 
-      websocket.onclose = () => {
+      websocket.onerror = () => {
+        console.log(`WS error on ${wsURL}`);
+      }
+
+      websocket.onclose = (event: CloseEvent) => {
         if (cancelled) return;
         setStatus("reconnecting");
         const delay = Math.min(1000 * 2 ** attempts, 30000);
         attempts++;
         retryClock = setTimeout(connect, delay);
         console.log(`WS closed, retry #${attempts} in ${delay}ms`);
+        console.log(`${event.code} - ${event.reason}`);
       };
     };
 
