@@ -1,18 +1,21 @@
 import { useState, useEffect } from "react";
 import QuotesTable from "./QuotesTable";
 import type { Quote } from "./QuotesTable";
+import type { Metric } from "./MetricsTable";
+import MetricsTable from "./MetricsTable";
 
 type ConnectionStatus = "connected" | "disconnected" | "reconnecting";
 
 function App() {
   const [symbols, setSymbols] = useState<string[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [metrics, setMetrics] = useState<Metric[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
 
   useEffect(() => {
-    fetch("/symbols")
+    fetch("/api/symbols")
       .then((res) => {
         if (!res.ok){
           throw new Error(`HTTP ${res.status}`);
@@ -21,6 +24,20 @@ function App() {
       })
       .then((symbolsData) => {
         setSymbols(symbolsData.symbols);
+      })
+      .catch((err) => {
+        setError(String(err));
+        setLoading(false);
+      });
+    fetch("/api/metrics")
+      .then((res) => {
+        if (!res.ok){
+          throw new Error(`HTTP ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((metricsData) => {
+        setMetrics(metricsData.metrics);
       })
       .catch((err) => {
         setError(String(err));
@@ -35,7 +52,7 @@ function App() {
     let cancelled: boolean = false;
 
     const fetchQuotes = () => {
-      fetch("/quotes")
+      fetch("/api/quotes")
         .then((res) => {
           if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);
@@ -103,7 +120,10 @@ function App() {
         </p>
       )}
       <p>Tracking: {symbols.join(", ")}</p>
+      <h2>Quotes</h2>
       <QuotesTable quotes={quotes} />
+      <h2>Metrics</h2>
+      <MetricsTable metrics={metrics} />
     </div>
   );
 }
