@@ -1,6 +1,6 @@
 import sqlite3
 import os
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from .metrics import daily_returns, load_bars, annualized_return, annualized_volatility
 from datetime import datetime, timezone
@@ -69,6 +69,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+router = APIRouter(prefix="/api")
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
@@ -80,7 +82,7 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
-@app.get("/symbols")
+@router.get("/symbols")
 def list_symbols():
     """List all present symbols in the database."""
     conn = sqlite3.connect(DB_PATH)
@@ -93,7 +95,7 @@ def list_symbols():
 
     return {"symbols": [r[0] for r in rows]}
 
-@app.get("/bars/{symbol}")
+@router.get("/bars/{symbol}")
 def get_bars(symbol: str, limit: int = 100):
     """Return the most recent daily OHLCV bars for a symbol, newest first."""
     conn = sqlite3.connect(DB_PATH)
@@ -117,7 +119,7 @@ def get_bars(symbol: str, limit: int = 100):
         "bars": [dict(r) for r in rows],
     }
 
-@app.get("/metrics")
+@router.get("/metrics")
 def get_metrics():
     """Return CAGR and annualized volatility for every symbol."""
     df = daily_returns(load_bars(DB_PATH))
@@ -134,7 +136,7 @@ def get_metrics():
         ]
     }
 
-@app.get("/quotes")
+@router.get("/quotes")
 def get_quotes():
     """Return the latest bid/ask per symbol, with a staleness flag."""
     symbols = stream_to_db.get_symbols()
@@ -166,7 +168,8 @@ def get_quotes():
 
     return {"quotes": quotes, "as_of": now.isoformat()}
 
-dist_path = Path(__file__).parent.parent / "frontend" / "dist"
+app.include_router(router)
 
+dist_path = Path(__file__).parent.parent / "frontend" / "dist"
 if dist_path.exists():
     app.mount("/", StaticFiles(directory=dist_path, html=True), name="frontend")
