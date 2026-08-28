@@ -171,5 +171,7 @@ def get_quotes():
 app.include_router(router)
 
 dist_path = Path(__file__).parent.parent / "frontend" / "dist"
-if dist_path.exists():
+print(f"Frontend dist: {dist_path.resolve()}, is_dir={dist_path.is_dir()}")
+
+if dist_path.is_dir():
     app.mount("/", StaticFiles(directory=dist_path, html=True), name="frontend")
