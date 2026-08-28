@@ -10,6 +10,7 @@ from .backfill_history import stale_bar_refetch
 from . import stream_to_db
 import asyncio
 from pathlib import Path
+from fastapi.staticfiles import StaticFiles
 
 
 STALE_AFTER_SECONDS = 60
@@ -164,3 +165,8 @@ def get_quotes():
         }) 
 
     return {"quotes": quotes, "as_of": now.isoformat()}
+
+dist_path = Path(__file__).parent.parent / "frontend" / "dist"
+
+if dist_path.exists():
+    app.mount("/", StaticFiles(directory=dist_path, html=True), name="frontend")
