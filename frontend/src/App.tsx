@@ -5,7 +5,8 @@ import type { Metric } from "./MetricsTable";
 import MetricsTable from "./MetricsTable";
 
 export type ConnectionStatus = "connected" | "disconnected" | "reconnecting";
-const THRESHOLD = 300 // different than STALE_AFTER_SECONDS. This is the threshold for determining if the market is closed
+const MARKET_CLOSED_THRESHOLD = 300 // threshold for determining if the market is closed
+const AGE_REFRESH_INTERVAL = 30000
 
 function App() {
   const [symbols, setSymbols] = useState<string[]>([]);
@@ -14,7 +15,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
-  const isClosed: boolean = quotes.length > 0 && quotes.every((q) => q.age_seconds > THRESHOLD)
+  const isClosed: boolean = quotes.length > 0 && quotes.every((q) => q.age_seconds > MARKET_CLOSED_THRESHOLD)
 
   useEffect(() => {
     fetch("/api/symbols")
@@ -50,6 +51,7 @@ function App() {
   useEffect(() => {
     let websocket: WebSocket | null = null;
     let retryClock: ReturnType<typeof setTimeout>;
+    let refreshClock: ReturnType<typeof setInterval>;
     let attempts: number = 0;
     let cancelled: boolean = false;
 
@@ -101,11 +103,13 @@ function App() {
       };
     };
 
+    refreshClock = setInterval(fetchQuotes, AGE_REFRESH_INTERVAL);
     connect();
 
     return () => {
       cancelled = true;
       clearTimeout(retryClock);
+      clearInterval(refreshClock);
       websocket?.close();
     }
   }, []);
