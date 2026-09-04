@@ -1,3 +1,4 @@
+
 export interface Quote {
     symbol: string;
     bid_price: number;
@@ -26,7 +27,7 @@ function QuotesTable({ quotes }: QuotesTableProps) {
             </thead>
             <tbody>
                 {quotes.length === 0 ? (
-                    <tr><td colSpan={5}>No recent data - markets may be closed</td></tr>
+                    <tr><td colSpan={5}>Waiting for data...</td></tr>
                 ) : (
                     quotes.map((q) => (
                         <tr key={q.symbol}>

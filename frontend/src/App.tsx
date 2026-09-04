@@ -4,7 +4,8 @@ import type { Quote } from "./QuotesTable";
 import type { Metric } from "./MetricsTable";
 import MetricsTable from "./MetricsTable";
 
-type ConnectionStatus = "connected" | "disconnected" | "reconnecting";
+export type ConnectionStatus = "connected" | "disconnected" | "reconnecting";
+const THRESHOLD = 300 // different than STALE_AFTER_SECONDS. This is the threshold for determining if the market is closed
 
 function App() {
   const [symbols, setSymbols] = useState<string[]>([]);
@@ -13,6 +14,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
+  const isClosed: boolean = quotes.length > 0 && quotes.every((q) => q.age_seconds > THRESHOLD)
 
   useEffect(() => {
     fetch("/api/symbols")
@@ -111,14 +113,23 @@ function App() {
   if (loading) return <p>Loading…</p>;
   if (error && quotes.length === 0) return <p>Error: {error}</p>;
 
+  let statusMessage: string | null = null;
+
+  if (status !== "connected") {
+    statusMessage = `${status === "reconnecting" ? "Reconnecting..." : "Disconnected"} - showing last known data`; 
+  }
+  else if (isClosed) {
+    statusMessage = "No recent data - markets may be closed";
+  }
+
   return (
     <div>
       <h1>Market Dashboard</h1>
-      {status !== "connected" && (
+      {statusMessage && 
         <p style={{ color: "#e57373"}}>
-          {status === "reconnecting" ? "Reconnecting..." : "Disconnected"} - showing last known data
+          {statusMessage}
         </p>
-      )}
+      }
       <p>Tracking: {symbols.join(", ")}</p>
       <h2>Quotes</h2>
       <QuotesTable quotes={quotes} />
